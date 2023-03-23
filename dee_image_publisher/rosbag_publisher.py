@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
+# ref: https://github.com/ros2/rosbag2/blob/c7c7954d4d9944c160d7b3d716d1cb95d34e37e4/rosbag2_py/test/test_sequential_reader.py
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
-import cv2
 import os
-import numpy as np
-import rosbag2_py
 from rosbag2_py import SequentialReader, StorageOptions, ConverterOptions
 from std_msgs.msg import Header
-from rosbags.image import message_to_cvimage
+from rclpy.serialization import deserialize_message
+from rosidl_runtime_py.utilities import get_message
 
 class RosbagPublisher(Node):
     def __init__(self):
@@ -27,24 +26,23 @@ class RosbagPublisher(Node):
         self.reader.open(self.storage_options, self.converter_options)
 
         # get all topics and types
-        self.topic_metadata = self.reader.get_all_topics_and_types()
-        self.topic_names = []
-        for topic in self.topic_metadata:
-            self.topic_names.append(topic.name)
-        self.topic_names.sort()
+        topic_metadata = self.reader.get_all_topics_and_types()
+        self.type_map = {topic_metadata[i].name: topic_metadata[i].type for i in range(len(topic_metadata))}
 
     def timer_callback(self):
-        for topic in self.topic_names:
+        while self.reader.has_next():
            (msg_topic, msg, t) = self.reader.read_next()
-           if topic == msg_topic:
-                # img_array = np.frombuffer(msg, dtype=np.uint8)
-                img_ros = message_to_cvimage(msg)
-                msg = self.bridge.cv2_to_imgmsg(img_ros, encoding='passthrough')
-                msg.header = Header()
-                msg.header.stamp = self.get_clock().now().to_msg()
+           print(msg_topic + "\t")
+           if msg_topic == '/webcam':
+                msg_type = get_message(self.type_map[msg_topic])
+                msg = deserialize_message(msg, msg_type)
+                cv_img = self.bridge.imgmsg_to_cv2(msg, desired_encoding='passthrough')
+                ros_msg = self.bridge.cv2_to_imgmsg(cv_img, "bgr8")
+                ros_msg.header = Header()
+                ros_msg.header.stamp = self.get_clock().now().to_msg()
                 self.get_logger().info('Publishing image from bag file at time: {}'.format(t))
-                self.publisher_.publish(msg)
-        self.reader.close()
+                self.publisher_.publish(ros_msg)
+        self.get_logger().info('End of bag file')
 
 def main(args=None):
     rclpy.init(args=args)

@@ -19,7 +19,7 @@ class KittiPublisher(Node):
         self.bridge = CvBridge()
 
     def timer_callback(self):
-        kitti_dir = os.path.join(os.getcwd(), 'ros2_dee_ws','src', 'dee_image_publisher', 'dataset', 'kitti', '2011_09_26', '2011_09_26_drive_0001_sync')
+        kitti_dir = os.path.join(os.getcwd(),'src', 'dee_image_publisher', 'dataset', 'kitti', '2011_09_26', '2011_09_26_drive_0001_sync')
         image_files = sorted(os.listdir(os.path.join(kitti_dir, 'image_02', 'data')))
         for image_file in image_files:
             image_path = os.path.join(kitti_dir, 'image_02', 'data', image_file)
