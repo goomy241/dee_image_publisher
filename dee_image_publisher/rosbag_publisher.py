@@ -19,7 +19,7 @@ class RosbagPublisher(Node):
         self.bridge = CvBridge()
 
         # open rosbag file
-        bag_dir = os.path.join(os.getcwd(), 'src', 'dee_image_publisher', 'dataset', 'bag', 'dee_webcam_bag1')
+        bag_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'dataset', 'bag', 'dee_webcam_bag1')
         self.reader = SequentialReader()
         self.storage_options = StorageOptions(uri=bag_dir, storage_id='sqlite3')
         self.converter_options = ConverterOptions(input_serialization_format='cdr', output_serialization_format='cdr')
