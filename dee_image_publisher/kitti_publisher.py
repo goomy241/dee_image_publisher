@@ -92,7 +92,7 @@ def main(args=None):
     # create logger
     logger = logging.getLogger('kitti_publisher')
     logger.setLevel(logging.INFO)
-    log_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'log', 'kitti_publisher_4.log')
+    log_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'log', 'test.log')
     handler = logging.FileHandler(log_path)
     handler.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
