@@ -4,6 +4,7 @@ import rclpy
 import os
 from rclpy.node import Node
 from sensor_msgs.msg import Image
+from sensor_msgs.msg import PointCloud2, PointField
 from std_msgs.msg import Header
 from cv_bridge import CvBridge
 import cv2
@@ -14,21 +15,66 @@ class KittiPublisher(Node):
     def __init__(self):
         super().__init__('kitti_publisher')
         self.publisher_ = self.create_publisher(Image, 'kitti_image', 10)
+        self.pointcloud_publisher_ = self.create_publisher(PointCloud2, 'kitti_pointcloud', 10)
+
+        # load kitti data
+        self.kitti_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'dataset', 'kitti', '2011_09_26', '2011_09_26_drive_0001_sync')
+        self.image_files = os.path.join(self.kitti_dir, 'image_02', 'data')
+        self.velodyne_files = os.path.join(self.kitti_dir, 'velodyne_points', 'data')
+
         timer_period = 0.5  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
+        self.seq = 0
         self.bridge = CvBridge()
 
     def timer_callback(self):
-        kitti_dir = os.path.join(os.getcwd(),'src', 'dee_image_publisher', 'dataset', 'kitti', '2011_09_26', '2011_09_26_drive_0001_sync')
-        image_files = sorted(os.listdir(os.path.join(kitti_dir, 'image_02', 'data')))
-        for image_file in image_files:
-            image_path = os.path.join(kitti_dir, 'image_02', 'data', image_file)
-            img = cv2.imread(image_path)
-            self.get_logger().info('Publishing: %s, path %s' % (image_file, image_path))
-            msg = self.bridge.cv2_to_imgmsg(img, "bgr8")
-            msg.header = Header()
-            msg.header.stamp = self.get_clock().now().to_msg()
-            self.publisher_.publish(msg)
+        velodyne_file = os.path.join(self.velodyne_files, '{:010d}.bin'.format(self.seq))
+        image_file = os.path.join(self.image_files, '{:010d}.png'.format(self.seq))
+
+        # publish image
+        image = cv2.imread(image_file)
+        image_msg = self.bridge.cv2_to_imgmsg(image, encoding='bgr8')
+        image_msg.header = Header()
+        image_msg.header.stamp = self.get_clock().now().to_msg()
+        image_msg.header.frame_id = 'kitti'
+        self.publisher_.publish(image_msg)
+
+        # publish pointcloud
+        with open(velodyne_file, 'rb') as f:
+            velodyne = np.fromfile(f, dtype=np.float32).reshape(-1, 4)
+            pointcloud = np.zeros((velodyne.shape[0], 4), dtype=np.float32)
+            pointcloud[:, 0] = velodyne[:, 0]
+            pointcloud[:, 1] = velodyne[:, 1]
+            pointcloud[:, 2] = velodyne[:, 2]
+            intensity = pointcloud[:, 3]
+
+        pointcloud_msg = PointCloud2()
+        pointcloud_msg.header = Header()
+        pointcloud_msg.header.stamp = self.get_clock().now().to_msg()
+        pointcloud_msg.header.frame_id = 'kitti_velodyne'
+
+        # specify pointcloud data
+        pointcloud_msg.height = 1
+        pointcloud_msg.width = pointcloud.shape[0]
+        pointcloud_msg.fields.append(PointField(
+            name='x', offset=0, datatype=PointField.FLOAT32, count=1))
+        pointcloud_msg.fields.append(PointField(
+            name='y', offset=4, datatype=PointField.FLOAT32, count=1))
+        pointcloud_msg.fields.append(PointField(
+            name='z', offset=8, datatype=PointField.FLOAT32, count=1))
+        pointcloud_msg.fields.append(PointField(
+            name='intensity', offset=12, datatype=PointField.FLOAT32, count=1))
+        pointcloud_msg.is_bigendian = False
+        pointcloud_msg.point_step = 16
+        pointcloud_msg.row_step = pointcloud_msg.point_step * pointcloud_msg.width
+        pointcloud_msg.is_dense = True
+        pointcloud_msg.data = pointcloud.tobytes() + intensity.tobytes()
+        self.pointcloud_publisher_.publish(pointcloud_msg)
+
+        self.get_logger().info('Publishing image: %s' % image_file)
+        self.get_logger().info('Publishing pointcloud: %s' % velodyne_file)
+
+        self.seq += 1
 
 def main(args=None):
     rclpy.init(args=args)
