@@ -9,6 +9,8 @@ from std_msgs.msg import Header
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
+import logging
+import time
 
 class KittiPublisher(Node):
 
@@ -25,8 +27,10 @@ class KittiPublisher(Node):
         timer_period = 0.5  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
         self.seq = 0
+        self.total_images = len(os.listdir(self.image_files))
         self.bridge = CvBridge()
-
+        self.last_publish_time = time.monotonic()
+    
     def timer_callback(self):
         velodyne_file = os.path.join(self.velodyne_files, '{:010d}.bin'.format(self.seq))
         image_file = os.path.join(self.image_files, '{:010d}.png'.format(self.seq))
@@ -71,18 +75,34 @@ class KittiPublisher(Node):
         pointcloud_msg.data = pointcloud.tobytes() + intensity.tobytes()
         self.pointcloud_publisher_.publish(pointcloud_msg)
 
+        # Log the latency
+        current_time = time.monotonic()
+        latency = current_time - self.last_publish_time
+        logging.getLogger('kitti_publisher').info(f'Latency: {latency:.3f} seconds')
+        self.last_publish_time = current_time
         self.get_logger().info('Publishing image: %s' % image_file)
         self.get_logger().info('Publishing pointcloud: %s' % velodyne_file)
 
         self.seq += 1
+        if self.seq >= self.total_images:
+            self.get_logger().info('All images have been published. Exiting node.')
+            rclpy.shutdown()
 
 def main(args=None):
+    # create logger
+    logger = logging.getLogger('kitti_publisher')
+    logger.setLevel(logging.INFO)
+    log_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'log', 'kitti_publisher_4.log')
+    handler = logging.FileHandler(log_path)
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.info('This is the log for KittiPublisher node.')
+
     rclpy.init(args=args)
-
     kitti_publisher = KittiPublisher()
-
     rclpy.spin(kitti_publisher)
-
     kitti_publisher.destroy_node()
     rclpy.shutdown()
 
