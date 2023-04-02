@@ -18,8 +18,10 @@ This is a ROS2 package that publishes images from various sources, such as rosba
 
 ### Kitti Dataset
 - Start the node via `$ ros2 run dee_image_publisher kitti_publisher`. You should be able to view the callback message in your terminal. This node will publish data to two topics `/kitti_image` and `kitti_pointcloud`.
-- You can also utilize `foxglove` to visualize the published image and point cloud. Once connected to the web socket, enable the visibility of the `/kitti_pointcloud` topic, and it should appear as shown below::
+- You can also utilize `foxglove` to visualize the published image and point cloud. Once connected to the web socket, enable the visibility of the `/kitti_pointcloud` topic, and it should appear as shown below:
   <img width="945" alt="Screen Shot 2023-04-01 at 2 07 32 PM" src="https://user-images.githubusercontent.com/90799662/229339877-46bbabc9-eb18-435d-b194-87c838ccb51a.png">
+ 
+ - You can check the CPU utilization via `sh ./scripts/cpu.sh`, the result will be stored under `log` folder named as `cpu.log`. The latency log will be stored under `log` folder as well.
   
 ### Rosbag
 - Download the [bag file](#get-testing-data)
