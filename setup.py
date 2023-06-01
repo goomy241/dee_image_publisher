@@ -24,6 +24,7 @@ setup(
             'kitti_publisher = dee_image_publisher.kitti_publisher:main',
             'rosbag_publisher = dee_image_publisher.rosbag_publisher:main',
             'rosbag_play_test = dee_image_publisher.rosbagPlayTest:main',
+            'pcl_pub = dee_image_publisher.pcl_pub:main'
         ],
     },
 )
